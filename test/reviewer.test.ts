@@ -253,3 +253,47 @@ describe("eval scoring", () => {
     expect(result).toEqual({ detected: ["paginate", "parse_age"], found: ["paginate"], falseAlarms: 1 });
   });
 });
+
+describe("suggestion ranges", () => {
+  test("a suggestion that rewrites the next line too is widened to cover it", async () => {
+    const { coverRewrittenLines } = await import("../src/reviewer");
+    const file: ChangedFile = {
+      path: "shop/cart.py",
+      status: "modified",
+      patch: "",
+      content: "def total(items):\n    return 0\n\n\ndef average(items):\n    return total(items) / len(items)\n",
+      changedLines: [5, 6],
+    };
+    const widened = coverRewrittenLines(
+      {
+        file: "shop/cart.py", line: 5, severity: "medium", message: "empty cart",
+        suggestion: "def average(items):\n    if not items:\n        return 0\n    return total(items) / len(items)",
+      },
+      file,
+    );
+    expect(widened.endLine).toBe(6);
+
+    const untouched = coverRewrittenLines(
+      { file: "shop/cart.py", line: 6, severity: "medium", message: "x", suggestion: "    return 0" },
+      file,
+    );
+    expect(untouched.endLine).toBeUndefined();
+  });
+});
+
+describe("fix checking", () => {
+  test("applySuggestion replaces exactly lines line..endLine", async () => {
+    const { applySuggestion } = await import("../eval/check_fix");
+    const content = "a\nb\nc\nd";
+    expect(applySuggestion(content, { file: "f", line: 2, endLine: 3, severity: "low", message: "", suggestion: "X\nY\nZ" }))
+      .toBe("a\nX\nY\nZ\nd");
+  });
+
+  test("a correct fix passes the bug's test and a wrong one fails (needs Docker)", async () => {
+    const { fixWorks } = await import("../eval/check_fix");
+    const buggy = "def apply_discount(total):\n    if total > 100:\n        return round(total * 0.9, 2)\n    return total\n";
+    const comment = { file: "f", line: 2, severity: "high" as const, message: "" };
+    expect(await fixWorks(buggy, { ...comment, suggestion: "    if total >= 100:" }, "apply_discount")).toBe(true);
+    expect(await fixWorks(buggy, { ...comment, suggestion: "    if total > 1000:" }, "apply_discount")).toBe(false);
+  }, 60_000);
+});

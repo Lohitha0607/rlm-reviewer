@@ -10,6 +10,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { baselineReview } from "../src/baseline";
+import { fixWorks } from "./check_fix";
 import { readChangedFiles } from "../src/diff";
 import { OpenAIChatModel } from "../src/model";
 import { review } from "../src/reviewer";
@@ -76,6 +77,19 @@ async function main() {
           const result =
             mode === "baseline" ? await baselineReview(input, model) : await review(input, model, sandbox);
           const s = score(result.comments, meta.bugs);
+          // A fix counts when a suggestion covers the bug's line and passes its test.
+          let fixesWorking = 0;
+          let fixesTried = 0;
+          for (const bug of meta.bugs as Bug[]) {
+            const content = files.find((f) => f.path === bug.file)?.content ?? "";
+            const fix = result.comments.find(
+              (c) => c.file === bug.file && c.suggestion !== undefined &&
+                c.line <= bug.line && bug.line <= (c.endLine ?? c.line),
+            );
+            if (!fix) continue;
+            fixesTried += 1;
+            if (await fixWorks(content, fix, bug.bug)) fixesWorking += 1;
+          }
           row = {
             pr: name,
             mode,
@@ -88,6 +102,8 @@ async function main() {
             dropped: result.dropped.length,
             ...result.usage,
             withSuggestion: result.comments.filter((c) => c.suggestion).length,
+            fixesTried,
+            fixesWorking,
             review: result.comments,
           };
         } finally {
@@ -102,7 +118,8 @@ async function main() {
         `${name.padEnd(6)} ${mode.padEnd(8)} ` +
           (row.error
             ? `ERROR ${row.error}`
-            : `detected ${row.detected}/${row.bugs} · located ${row.found}/${row.bugs} · false alarms ${row.falseAlarms} · ` +
+            : `detected ${row.detected}/${row.bugs} · located ${row.found}/${row.bugs} · ` +
+              `fixes working ${row.fixesWorking}/${row.bugs} · false alarms ${row.falseAlarms} · ` +
               `input tokens ${Number(row.inputTokens).toLocaleString()} · calls ${row.modelCalls} · ${row.seconds}s`),
       );
     }
