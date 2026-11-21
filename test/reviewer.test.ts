@@ -318,3 +318,24 @@ describe("suggestion indentation", () => {
     expect(already.suggestion).toBe("    if total >= 100:");
   });
 });
+
+describe("suggestion range, backwards", () => {
+  test("a suggestion that also rewrites the line before is widened back, then indented from that line", async () => {
+    const { validateComments } = await import("../src/reviewer");
+    const file: ChangedFile = {
+      path: "shop/cart.py", status: "modified", patch: "",
+      content: "def total(items):\n    return 0\n\n\ndef average(items):\n    return total(items) / len(items)\n",
+      changedLines: [5, 6],
+    };
+    const { comments } = validateComments(
+      [{
+        file: "shop/cart.py", line: 6, severity: "medium", message: "empty cart",
+        suggestion: "def average(items):\n    if not items:\n        return 0\n    return total(items) / len(items)",
+      }],
+      [file],
+      10,
+    );
+    expect(comments[0]).toMatchObject({ line: 5, endLine: 6 });
+    expect(comments[0]!.suggestion!.startsWith("def average(items):")).toBe(true);
+  });
+});

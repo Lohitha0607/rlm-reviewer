@@ -1,0 +1,20 @@
+# Copy to .github/workflows/rlm-review.yml in your repository and add an
+# OPENROUTER_API_KEY repository secret (Settings → Secrets and variables → Actions).
+name: RLM review
+
+on:
+  pull_request:
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: Lohitha0607/rlm-reviewer@main
+        with:
+          api-key: ${{ secrets.OPENROUTER_API_KEY }}

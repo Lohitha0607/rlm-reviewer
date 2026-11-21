@@ -1,0 +1,41 @@
+name: RLM reviewer
+description: Review pull requests the RLM way, exploring even huge diffs with code, and post comments with suggested fixes.
+author: Lohitha
+branding:
+  icon: search
+  color: blue
+
+inputs:
+  api-key:
+    description: API key for the model endpoint (store it as a repository secret).
+    required: true
+  model:
+    description: Model id on the endpoint.
+    default: nvidia/nemotron-3.5-super-vl
+  base-url:
+    description: OpenAI-compatible endpoint.
+    default: https://openrouter.ai/api/v1
+  github-token:
+    description: Token used to post the review.
+    default: ${{ github.token }}
+  dry-run:
+    description: "true: print the review instead of posting it."
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+    - name: Install
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: bun install --frozen-lockfile --production
+    - name: Review
+      shell: bash
+      run: bun "${{ github.action_path }}/src/action.ts"
+      env:
+        RLM_API_KEY: ${{ inputs.api-key }}
+        RLM_MODEL: ${{ inputs.model }}
+        RLM_BASE_URL: ${{ inputs.base-url }}
+        RLM_DRY_RUN: ${{ inputs.dry-run }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}

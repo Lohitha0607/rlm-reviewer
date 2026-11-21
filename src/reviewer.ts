@@ -167,25 +167,42 @@ export function parseJsonArray(text: string): unknown[] {
 }
 
 /**
- * Widen a suggestion's range when its last lines repeat the lines right after the
- * range: committing it as-is would leave those lines duplicated.
+ * Widen a suggestion's range when it rewrites lines next to it: when its first lines
+ * repeat the lines just before the range, or its last lines repeat the lines just
+ * after it. Committing it as-is would leave those lines duplicated.
  */
 export function coverRewrittenLines(comment: ReviewComment, file: ChangedFile): ReviewComment {
   if (comment.suggestion === undefined || file.content === null) return comment;
   const fileLines = file.content.split("\n");
-  const suggested = comment.suggestion.replace(/\n+$/, "").split("\n");
+  const suggested = comment.suggestion.replace(/\n+$/, "").split("\n").map((l) => l.trim());
+  const changed = (n: number) => file.changedLines.includes(n);
+  let start = comment.line;
   let end = comment.endLine ?? comment.line;
-  for (let extra = 1; extra <= 3; extra++) {
-    const next = fileLines.slice(end, end + extra).map((l) => l.trim());
-    if (next.length < extra || next.some((l) => !l)) break;
-    const tail = suggested.slice(-extra).map((l) => l.trim());
-    const lineNumbers = Array.from({ length: extra }, (_, i) => end + 1 + i);
-    if (tail.join("\n") === next.join("\n") && lineNumbers.every((n) => file.changedLines.includes(n))) {
+
+  for (let extra = 3; extra >= 1; extra--) {
+    const before = fileLines.slice(start - 1 - extra, start - 1).map((l) => l.trim());
+    const numbers = Array.from({ length: extra }, (_, i) => start - extra + i);
+    if (
+      before.length === extra && before.every(Boolean) && numbers.every(changed) &&
+      suggested.slice(0, extra).join("\n") === before.join("\n")
+    ) {
+      start -= extra;
+      break;
+    }
+  }
+  for (let extra = 3; extra >= 1; extra--) {
+    const after = fileLines.slice(end, end + extra).map((l) => l.trim());
+    const numbers = Array.from({ length: extra }, (_, i) => end + 1 + i);
+    if (
+      after.length === extra && after.every(Boolean) && numbers.every(changed) &&
+      suggested.slice(-extra).join("\n") === after.join("\n")
+    ) {
       end += extra;
       break;
     }
   }
-  return end === (comment.endLine ?? comment.line) ? comment : { ...comment, endLine: end };
+  if (start === comment.line && end === (comment.endLine ?? comment.line)) return comment;
+  return { ...comment, line: start, ...(end !== start ? { endLine: end } : {}) };
 }
 
 /**
@@ -250,8 +267,9 @@ export function validateComments(
       }
     }
     if (comment.suggestion !== undefined) {
-      Object.assign(comment, matchIndentation(comment, file));
+      // Fix the range first, so indentation is matched against the real first line.
       Object.assign(comment, coverRewrittenLines(comment, file));
+      Object.assign(comment, matchIndentation(comment, file));
       const span = (comment.endLine ?? comment.line) - comment.line + 1;
       if (span > maxSuggestionLines) {
         delete comment.suggestion; // keep the comment, drop the risky large fix
