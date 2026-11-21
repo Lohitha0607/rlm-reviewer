@@ -2,7 +2,10 @@
 // rlm-review: review the current branch against a base branch.
 //
 //   bun src/cli.ts --repo <path> --base main [--head HEAD] [--title "..."] [--body "..."]
-//                  [--model openrouter-model-id] [--json]
+//                  [--model id] [--base-url url] [--api-key-env NAME] [--json]
+//
+// Any OpenAI-compatible server works, e.g. local Ollama:
+//   --base-url http://localhost:11434/v1 --model qwen3:8b
 
 import { parseArgs } from "node:util";
 import { readChangedFiles, readCommitMessages } from "./diff";
@@ -44,6 +47,8 @@ async function main() {
       title: { type: "string", default: "" },
       body: { type: "string", default: "" },
       model: { type: "string", default: DEFAULT_MODEL },
+      "base-url": { type: "string", default: "https://openrouter.ai/api/v1" },
+      "api-key-env": { type: "string", default: "OPENROUTER_API_KEY" },
       json: { type: "boolean", default: false },
     },
   });
@@ -66,7 +71,12 @@ async function main() {
 
   const sandbox = await createDockerSandbox(input);
   try {
-    const result = await review(input, new OpenAIChatModel(values.model!), sandbox);
+    const baseURL = values["base-url"]!;
+    const isLocal = /localhost|127\.0\.0\.1/.test(baseURL);
+    // Local servers such as Ollama accept any key.
+    const apiKey = process.env[values["api-key-env"]!] ?? (isLocal ? "local" : undefined);
+    const model = new OpenAIChatModel(values.model!, apiKey, baseURL);
+    const result = await review(input, model, sandbox);
     console.log(values.json ? JSON.stringify(result, null, 2) : format(result));
   } finally {
     await sandbox.close();
