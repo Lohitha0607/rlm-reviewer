@@ -218,3 +218,37 @@ describe("docker sandbox (needs Docker)", () => {
     }
   }, 120_000);
 });
+
+describe("baseline reviewer", () => {
+  test("sends the whole diff in one prompt and validates the reply the same way", async () => {
+    const { baselineReview } = await import("../src/baseline");
+    const model = new FakeModel([
+      text('[{"file": "src/billing.py", "line": 6, "severity": "high", "message": "Use > 500."}, {"file": "src/billing.py", "line": 1, "severity": "low", "message": "Unchanged."}]'),
+    ]);
+    const result = await baselineReview(INPUT, model);
+    const request = JSON.stringify(model.sent[0]);
+    expect(request).toContain("return total / len(prices)"); // the diff IS in the prompt
+    expect(result.comments).toHaveLength(1);
+    expect(result.dropped).toHaveLength(1);
+    expect(result.usage.modelCalls).toBe(1);
+  });
+});
+
+describe("eval scoring", () => {
+  test("a comment within 3 lines of a bug finds it; others are false alarms", async () => {
+    const { score } = await import("../eval/run_eval");
+    const bugs = [
+      { file: "a.py", line: 10, bug: "paginate", what: "" },
+      { file: "b.py", line: 40, bug: "parse_age", what: "" },
+    ];
+    const result = score(
+      [
+        { file: "a.py", line: 12, severity: "high", message: "off by one" },
+        { file: "b.py", line: 50, severity: "low", message: "far away" },
+        { file: "c.py", line: 1, severity: "low", message: "noise" },
+      ],
+      bugs,
+    );
+    expect(result).toEqual({ found: ["paginate"], falseAlarms: 2 });
+  });
+});
