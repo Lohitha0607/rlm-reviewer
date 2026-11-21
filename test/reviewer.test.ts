@@ -297,3 +297,24 @@ describe("fix checking", () => {
     expect(await fixWorks(buggy, { ...comment, suggestion: "    if total > 1000:" }, "apply_discount")).toBe(false);
   }, 60_000);
 });
+
+describe("suggestion indentation", () => {
+  test("a suggestion that lost its indentation is re-indented to the original line", async () => {
+    const { matchIndentation } = await import("../src/reviewer");
+    const file: ChangedFile = {
+      path: "m.py", status: "added", patch: "",
+      content: "def apply_discount(total):\n    if total > 100:\n        return round(total * 0.9, 2)\n",
+      changedLines: [1, 2, 3],
+    };
+    const fixed = matchIndentation(
+      { file: "m.py", line: 2, severity: "high", message: "", suggestion: "if total >= 100:\n    return 1" },
+      file,
+    );
+    expect(fixed.suggestion).toBe("    if total >= 100:\n        return 1");
+    const already = matchIndentation(
+      { file: "m.py", line: 2, severity: "high", message: "", suggestion: "    if total >= 100:" },
+      file,
+    );
+    expect(already.suggestion).toBe("    if total >= 100:");
+  });
+});

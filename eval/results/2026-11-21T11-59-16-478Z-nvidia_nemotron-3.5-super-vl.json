@@ -1,0 +1,263 @@
+{
+  "model": "nvidia/nemotron-3.5-super-vl",
+  "results": [
+    {
+      "pr": "small",
+      "mode": "baseline",
+      "bugs": 2,
+      "detected": 2,
+      "found": 2,
+      "foundBugs": [
+        "apply_discount",
+        "paginate"
+      ],
+      "falseAlarms": 0,
+      "comments": 2,
+      "dropped": 0,
+      "inputTokens": 1090,
+      "outputTokens": 3250,
+      "modelCalls": 1,
+      "withSuggestion": 2,
+      "fixesTried": 2,
+      "fixesWorking": 0,
+      "review": [
+        {
+          "file": "services/module_01.py",
+          "line": 15,
+          "severity": "high",
+          "message": "apply_discount applies the discount only when total > 100, but the rule requires 10% off for totals of at least 100 (>= 100).",
+          "suggestion": "if total >= 100:"
+        },
+        {
+          "file": "services/module_02.py",
+          "line": 25,
+          "severity": "high",
+          "message": "paginate returns items[start:start + size + 1], which can return size + 1 items, violating the rule of at most `size` items per page.",
+          "suggestion": "return items[start:start + size]"
+        }
+      ],
+      "seconds": 6
+    },
+    {
+      "pr": "small",
+      "mode": "rlm",
+      "bugs": 2,
+      "detected": 2,
+      "found": 2,
+      "foundBugs": [
+        "apply_discount",
+        "paginate"
+      ],
+      "falseAlarms": 0,
+      "comments": 2,
+      "dropped": 0,
+      "inputTokens": 7676,
+      "outputTokens": 3534,
+      "modelCalls": 5,
+      "withSuggestion": 2,
+      "fixesTried": 2,
+      "fixesWorking": 0,
+      "review": [
+        {
+          "file": "services/module_01.py",
+          "line": 15,
+          "severity": "medium",
+          "message": "apply_discount uses `total > 100`, but the rule requires 10% off for totals of AT LEAST 100 (total >= 100). A total of exactly 100 incorrectly receives no discount.",
+          "endLine": 15,
+          "suggestion": "if total >= 100:"
+        },
+        {
+          "file": "services/module_02.py",
+          "line": 25,
+          "severity": "high",
+          "message": "paginate returns size + 1 items, violating the rule to return AT MOST `size` items for the given page.",
+          "endLine": 25,
+          "suggestion": "return items[start:start + size]"
+        }
+      ],
+      "seconds": 13
+    },
+    {
+      "pr": "medium",
+      "mode": "baseline",
+      "bugs": 3,
+      "detected": 3,
+      "found": 0,
+      "foundBugs": [],
+      "falseAlarms": 0,
+      "comments": 3,
+      "dropped": 0,
+      "inputTokens": 19024,
+      "outputTokens": 1964,
+      "modelCalls": 1,
+      "withSuggestion": 3,
+      "fixesTried": 0,
+      "fixesWorking": 0,
+      "review": [
+        {
+          "file": "services/module_02.py",
+          "line": 35,
+          "severity": "medium",
+          "message": "paginate returns size + 1 items because the slice end is start + size + 1, violating the rule that it returns at most `size` items.",
+          "endLine": 37,
+          "suggestion": "def paginate(items, page, size):\n    start = page * size\n    return items[start:start + size]"
+        },
+        {
+          "file": "services/module_08.py",
+          "line": 52,
+          "severity": "medium",
+          "message": "apply_discount only applies the discount when total > 100, but the rule requires 10% off for totals of at least 100 (>= 100).",
+          "endLine": 56,
+          "suggestion": "def apply_discount(total):\n    if total >= 100:\n        return round(total * 0.9, 2)\n    return total"
+        },
+        {
+          "file": "services/module_14.py",
+          "line": 43,
+          "severity": "medium",
+          "message": "parse_age does not raise ValueError for negative ages as required.",
+          "endLine": 45,
+          "suggestion": "def parse_age(text):\n    age = int(text)\n    if age < 0:\n        raise ValueError('age must not be negative')\n    return age"
+        }
+      ],
+      "seconds": 5
+    },
+    {
+      "pr": "medium",
+      "mode": "rlm",
+      "bugs": 3,
+      "detected": 3,
+      "found": 3,
+      "foundBugs": [
+        "paginate",
+        "apply_discount",
+        "parse_age"
+      ],
+      "falseAlarms": 0,
+      "comments": 3,
+      "dropped": 0,
+      "inputTokens": 17373,
+      "outputTokens": 2628,
+      "modelCalls": 5,
+      "withSuggestion": 3,
+      "fixesTried": 3,
+      "fixesWorking": 2,
+      "review": [
+        {
+          "file": "services/module_02.py",
+          "line": 42,
+          "severity": "medium",
+          "message": "paginate returns `size + 1` items (`items[start:start + size + 1]`), violating the rule that it must return AT MOST `size` items for the given page.",
+          "endLine": 42,
+          "suggestion": "    return items[start:start + size]"
+        },
+        {
+          "file": "services/module_08.py",
+          "line": 48,
+          "severity": "medium",
+          "message": "apply_discount uses `total > 100`, so a total of exactly 100 receives no discount, violating the rule that 10% off applies to totals of AT LEAST 100.",
+          "endLine": 48,
+          "suggestion": "    if total >= 100:"
+        },
+        {
+          "file": "services/module_14.py",
+          "line": 48,
+          "severity": "medium",
+          "message": "parse_age converts text to int and returns it without checking for negative values, so it never raises ValueError for negative ages as required.",
+          "endLine": 49,
+          "suggestion": "    age = int(text)\n    if age < 0:\n        raise ValueError('age must not be negative')"
+        }
+      ],
+      "seconds": 9
+    },
+    {
+      "pr": "huge",
+      "mode": "baseline",
+      "bugs": 3,
+      "detected": 3,
+      "found": 0,
+      "foundBugs": [],
+      "falseAlarms": 0,
+      "comments": 3,
+      "dropped": 0,
+      "inputTokens": 75885,
+      "outputTokens": 6817,
+      "modelCalls": 1,
+      "withSuggestion": 3,
+      "fixesTried": 0,
+      "fixesWorking": 0,
+      "review": [
+        {
+          "file": "services/module_07.py",
+          "line": 47,
+          "severity": "high",
+          "message": "paginate returns size + 1 items instead of at most size; slice end should be start + size, not start + size + 1",
+          "endLine": 49,
+          "suggestion": "def paginate(items, page, size):\n    start = page * size\n    return items[start:start + size]"
+        },
+        {
+          "file": "services/module_31.py",
+          "line": 36,
+          "severity": "high",
+          "message": "apply_discount only discounts totals strictly greater than 100; rule requires 10% off for totals of at least 100 (>= 100)",
+          "endLine": 39,
+          "suggestion": "def apply_discount(total):\n    if total >= 100:\n        return round(total * 0.9, 2)\n    return total"
+        },
+        {
+          "file": "services/module_55.py",
+          "line": 44,
+          "severity": "high",
+          "message": "parse_age does not raise ValueError for negative ages as required",
+          "endLine": 46,
+          "suggestion": "def parse_age(text):\n    age = int(text)\n    if age < 0:\n        raise ValueError('age must not be negative')\n    return age"
+        }
+      ],
+      "seconds": 13
+    },
+    {
+      "pr": "huge",
+      "mode": "rlm",
+      "bugs": 3,
+      "detected": 3,
+      "found": 3,
+      "foundBugs": [
+        "paginate",
+        "apply_discount",
+        "parse_age"
+      ],
+      "falseAlarms": 0,
+      "comments": 3,
+      "dropped": 0,
+      "inputTokens": 26668,
+      "outputTokens": 2619,
+      "modelCalls": 5,
+      "withSuggestion": 3,
+      "fixesTried": 3,
+      "fixesWorking": 3,
+      "review": [
+        {
+          "file": "services/module_07.py",
+          "line": 56,
+          "severity": "high",
+          "message": "paginate returns items[start:start + size + 1], which can return size + 1 items, violating the rule that it returns AT MOST `size` items for the given page.",
+          "suggestion": "    return items[start:start + size]"
+        },
+        {
+          "file": "services/module_31.py",
+          "line": 44,
+          "severity": "high",
+          "message": "apply_discount only discounts when total > 100, but the rule requires 10% off for totals of AT LEAST 100 (i.e. total == 100 must also be discounted).",
+          "suggestion": "    if total >= 100:"
+        },
+        {
+          "file": "services/module_55.py",
+          "line": 51,
+          "severity": "high",
+          "message": "parse_age never raises ValueError for negative ages, violating the rule. int(text) only raises for non-numeric input.",
+          "endLine": 53,
+          "suggestion": "def parse_age(text):\n    age = int(text)\n    if age < 0:\n        raise ValueError('age must not be negative')\n    return age"
+        }
+      ],
+      "seconds": 10
+    }
+  ]
+}
