@@ -1,0 +1,22 @@
+{
+  "name": "rlm-reviewer",
+  "version": "0.1.0",
+  "description": "An RLM-powered pull request reviewer: explores huge diffs with code instead of stuffing them into the model's context.",
+  "type": "module",
+  "bin": {
+    "rlm-review": "src/cli.ts"
+  },
+  "scripts": {
+    "review": "bun src/cli.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "Apache-2.0",
+  "dependencies": {
+    "openai": "^7.62.0"
+  },
+  "devDependencies": {
+    "bun-types": "^1.4.5",
+    "typescript": "^7.0.2"
+  }
+}
