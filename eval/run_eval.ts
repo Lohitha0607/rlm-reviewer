@@ -25,12 +25,22 @@ interface Bug {
 
 const LINE_TOLERANCE = 3;
 
+/**
+ * detected: a comment on the bug's file (each eval file has at most one bug).
+ * located:  that comment is within 3 lines of the bug, so GitHub shows it in the right place.
+ * falseAlarms: comments on files without a bug (the rest of the code is correct).
+ */
 export function score(comments: ReviewComment[], bugs: Bug[]) {
-  const matches = (c: ReviewComment, b: Bug) =>
+  const located = (c: ReviewComment, b: Bug) =>
     c.file === b.file && Math.abs(c.line - b.line) <= LINE_TOLERANCE;
-  const found = bugs.filter((b) => comments.some((c) => matches(c, b)));
-  const falseAlarms = comments.filter((c) => !bugs.some((b) => matches(c, b)));
-  return { found: found.map((b) => b.bug), falseAlarms: falseAlarms.length };
+  const detected = bugs.filter((b) => comments.some((c) => c.file === b.file));
+  const found = bugs.filter((b) => comments.some((c) => located(c, b)));
+  const falseAlarms = comments.filter((c) => !bugs.some((b) => b.file === c.file));
+  return {
+    detected: detected.map((b) => b.bug),
+    found: found.map((b) => b.bug),
+    falseAlarms: falseAlarms.length,
+  };
 }
 
 async function main() {
@@ -70,6 +80,7 @@ async function main() {
             pr: name,
             mode,
             bugs: meta.bugs.length,
+            detected: s.detected.length,
             found: s.found.length,
             foundBugs: s.found,
             falseAlarms: s.falseAlarms,
@@ -91,7 +102,7 @@ async function main() {
         `${name.padEnd(6)} ${mode.padEnd(8)} ` +
           (row.error
             ? `ERROR ${row.error}`
-            : `found ${row.found}/${row.bugs} · false alarms ${row.falseAlarms} · ` +
+            : `detected ${row.detected}/${row.bugs} · located ${row.found}/${row.bugs} · false alarms ${row.falseAlarms} · ` +
               `input tokens ${Number(row.inputTokens).toLocaleString()} · calls ${row.modelCalls} · ${row.seconds}s`),
       );
     }

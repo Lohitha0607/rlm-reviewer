@@ -249,6 +249,7 @@ describe("eval scoring", () => {
       ],
       bugs,
     );
-    expect(result).toEqual({ found: ["paginate"], falseAlarms: 2 });
+    // b.py's comment is on the right file but 10 lines away: detected, not located.
+    expect(result).toEqual({ detected: ["paginate", "parse_age"], found: ["paginate"], falseAlarms: 1 });
   });
 });
