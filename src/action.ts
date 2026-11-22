@@ -25,11 +25,9 @@ export interface ActionDeps {
 }
 
 /** Read the pull request from the event GitHub wrote for this run. */
-export async function readPullRequestEvent(eventPath: string): Promise<PullRequestEvent> {
+export async function readPullRequestEvent(eventPath: string): Promise<PullRequestEvent | null> {
   const event = await Bun.file(eventPath).json();
-  const pr = event.pull_request;
-  if (!pr) throw new Error("This action runs on pull_request events.");
-  return pr as PullRequestEvent;
+  return (event.pull_request ?? null) as PullRequestEvent | null;
 }
 
 export async function runAction({ env, log, model, sandbox }: ActionDeps): Promise<void> {
@@ -37,6 +35,10 @@ export async function runAction({ env, log, model, sandbox }: ActionDeps): Promi
   const repo = env.GITHUB_REPOSITORY;
   if (!eventPath || !repo) throw new Error("GITHUB_EVENT_PATH and GITHUB_REPOSITORY must be set.");
   const pr = await readPullRequestEvent(eventPath);
+  if (!pr) {
+    log("Not a pull_request event: nothing to review.");
+    return;
+  }
   const workspace = env.GITHUB_WORKSPACE ?? ".";
   const token = env.GITHUB_TOKEN;
   const dryRun = env.RLM_DRY_RUN === "true" || !token;

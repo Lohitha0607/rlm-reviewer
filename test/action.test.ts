@@ -99,12 +99,12 @@ describe("action dry run", () => {
     expect(output).toContain("```suggestion\\ny = 0\\n```");
   });
 
-  test("refuses events that are not pull requests", async () => {
+  test("skips events that are not pull requests, without failing", async () => {
     const dir = await mkdtemp(join(tmpdir(), "rlm-action-"));
     const eventPath = join(dir, "event.json");
     await writeFile(eventPath, JSON.stringify({ push: {} }));
-    await expect(
-      runAction({ env: { GITHUB_EVENT_PATH: eventPath, GITHUB_REPOSITORY: "me/repo" }, log: () => {} }),
-    ).rejects.toThrow("pull_request events");
+    const logs: string[] = [];
+    await runAction({ env: { GITHUB_EVENT_PATH: eventPath, GITHUB_REPOSITORY: "me/repo" }, log: (l) => logs.push(l) });
+    expect(logs).toEqual(["Not a pull_request event: nothing to review."]);
   });
 });
